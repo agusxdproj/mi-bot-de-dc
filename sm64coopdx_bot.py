@@ -1,3 +1,4 @@
+import sys
 import asyncio
 import discord
 from discord.ext import commands, tasks
@@ -7,11 +8,20 @@ from config import BOT_TOKEN, COMMAND_PREFIX, setup_logging, MAX_SESSION_DURATIO
 from session_manager import SessionManager
 from utils import format_duration, format_timestamp, is_long_session
 
-# Setup logging
+def setup_logging():
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s %(levelname)s %(message)s',
+        handlers=[
+            logging.StreamHandler(sys.stdout),
+        ],
+        # encoding parameter added to ensure UTF-8 output
+        encoding='utf-8'
+    )
+
 setup_logging()
 logger = logging.getLogger(__name__)
 
-# Bot setup
 intents = discord.Intents.default()
 intents.guilds = True
 
@@ -20,7 +30,6 @@ session_manager = SessionManager()
 
 @bot.event
 async def on_ready():
-    """Event fired when bot is ready."""
     logger.info(f"Bot connected as {bot.user}")
     logger.info(f"Connected to {len(bot.guilds)} servers")
     
@@ -39,7 +48,6 @@ async def on_ready():
 
 @bot.event
 async def on_application_command_error(interaction: discord.Interaction, error: discord.app_commands.AppCommandError):
-    """Handle application command errors."""
     logger.error(f"Command error in {interaction.command.name if interaction.command else 'unknown'}: {error}")
     
     if not interaction.response.is_done():
@@ -53,13 +61,12 @@ async def on_application_command_error(interaction: discord.Interaction, error: 
             ephemeral=True
         )
 
-@bot.tree.command(name="play", description="Iniciar o unirse a una sesión de SM64 Co-op DX")
+@bot.tree.command(name="play", description="Iniciar o unirse a una sesion de SM64 Co-op DX")
 @discord.app_commands.describe(
-    usuario="Mencionar un usuario para ver sus estadísticas",
-    contraseña="Contraseña opcional para la sesión"
+    usuario="Mencionar un usuario para ver sus estadisticas",
+    contrasena="Contrasena opcional para la sesion"
 )
-async def play(interaction: discord.Interaction, contraseña: str = "", usuario: discord.User = None):
-    """Start or join a gaming session."""
+async def play(interaction: discord.Interaction, contrasena: str = "", usuario: discord.User = None):
     try:
         guild_id = interaction.guild.id
         channel_id = interaction.channel.id
@@ -76,23 +83,23 @@ async def play(interaction: discord.Interaction, contraseña: str = "", usuario:
                     break
             
             embed = discord.Embed(
-                title=f"Estadísticas de {usuario.display_name}",
-                description="Información de sesión del usuario",
+                title=f"Estadisticas de {usuario.display_name}",
+                description="Informacion de sesion del usuario",
                 color=0x9932cc
             )
             
             if user_session:
                 duration = format_duration(user_session.get_duration())
-                password_info = f"Contraseña: {user_session.password}" if user_session.password else "Sin contraseña"
+                password_info = f"Contrasena: {user_session.password}" if user_session.password else "Sin contrasena"
                 
                 embed.add_field(
                     name="Estado",
-                    value="En sesión activa",
+                    value="En sesion activa",
                     inline=True
                 )
                 
                 embed.add_field(
-                    name="Duración",
+                    name="Duracion",
                     value=duration,
                     inline=True
                 )
@@ -105,26 +112,26 @@ async def play(interaction: discord.Interaction, contraseña: str = "", usuario:
             else:
                 embed.add_field(
                     name="Estado",
-                    value="No está en una sesión activa",
+                    value="No esta en una sesion activa",
                     inline=False
                 )
             
-            embed.set_footer(text="Estadísticas del usuario")
+            embed.set_footer(text="Estadisticas del usuario")
             await interaction.response.send_message(embed=embed)
             return
         
-        password_to_use = contraseña if contraseña.strip() else None
+        password_to_use = contrasena if contrasena.strip() else None
         session = session_manager.start_session(guild_id, channel_id, user_id, username, password_to_use)
         
         embed = discord.Embed(
             title="SM64 Co-op DX Session",
-            description="¡La sesión de juego está activa! (es posible que el tiempo no sea exacto)",
+            description="La sesion de juego esta activa! (es posible que el tiempo no sea exacto)",
             color=0x00ff00,
             timestamp=session.start_time
         )
         
         embed.add_field(
-            name="Anfitrión",
+            name="Anfitrion",
             value=session.host_username,
             inline=True
         )
@@ -137,12 +144,12 @@ async def play(interaction: discord.Interaction, contraseña: str = "", usuario:
         
         if password_to_use:
             embed.add_field(
-                name="Contraseña",
+                name="Contrasena",
                 value=password_to_use,
                 inline=True
             )
         
-        embed.set_footer(text="/stop para terminar la sesión")
+        embed.set_footer(text="/stop para terminar la sesion")
         
         await interaction.response.send_message(embed=embed)
         
@@ -153,17 +160,16 @@ async def play(interaction: discord.Interaction, contraseña: str = "", usuario:
         logger.error(traceback.format_exc())
         if not interaction.response.is_done():
             await interaction.response.send_message(
-                "Error al iniciar la sesión. Inténtalo de nuevo.", 
+                "Error al iniciar la sesion. Intentalo de nuevo.", 
                 ephemeral=True
             )
         else:
             await interaction.edit_original_response(
-                content="Error al iniciar la sesión. Inténtalo de nuevo."
+                content="Error al iniciar la sesion. Intentalo de nuevo."
             )
 
 @bot.tree.command(name="session", description="Show current session information and time tracking")
 async def session_info(interaction: discord.Interaction):
-    """Display current session information."""
     try:
         guild_id = interaction.guild.id
         session = session_manager.get_session(guild_id)
@@ -238,9 +244,8 @@ async def session_info(interaction: discord.Interaction):
             ephemeral=True
         )
 
-@bot.tree.command(name="stop", description="Finalizar la sesión de juego actual")
+@bot.tree.command(name="stop", description="Finalizar la sesion de juego actual")
 async def stop_session(interaction: discord.Interaction):
-    """End the current gaming session."""
     try:
         guild_id = interaction.guild.id
         user_id = interaction.user.id
@@ -248,8 +253,8 @@ async def stop_session(interaction: discord.Interaction):
         
         if not session or not session.is_active:
             embed = discord.Embed(
-                title="Sin Sesión Activa",
-                description="No hay una sesión activa para detener en este servidor.",
+                title="Sin Sesion Activa",
+                description="No hay una sesion activa para detener en este servidor.",
                 color=0x808080
             )
             await interaction.response.send_message(embed=embed)
@@ -260,7 +265,7 @@ async def stop_session(interaction: discord.Interaction):
         if not is_host:
             embed = discord.Embed(
                 title="Acceso Denegado",
-                description="Solo el anfitrión de la sesión puede finalizarla.",
+                description="Solo el anfitrion de la sesion puede finalizarla.",
                 color=0xff0000
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -272,38 +277,38 @@ async def stop_session(interaction: discord.Interaction):
         session_manager.end_session(guild_id)
         
         embed = discord.Embed(
-            title="Sesión Finalizada",
-            description="La sesión de SM64 Co-op DX ha terminado.",
+            title="Sesion Finalizada",
+            description="La sesion de SM64 Co-op DX ha terminado.",
             color=0xff4500,
             timestamp=session.end_time
         )
         
         embed.add_field(
-            name="Anfitrión",
+            name="Anfitrion",
             value=session.host_username,
             inline=True
         )
         
         embed.add_field(
-            name="Duración Total",
+            name="Duracion Total",
             value=format_duration(final_duration),
             inline=True
         )
         
         embed.add_field(
-            name="Período de Sesión",
+            name="Periodo de Sesion",
             value=f"<t:{int(session.start_time.timestamp())}:t> - <t:{int(session.end_time.timestamp())}:t>",
             inline=False
         )
         
         if final_duration >= 3600:
             embed.add_field(
-                name="Excelente Sesión",
-                value="Gracias por la sesión de juego extendida.",
+                name="Excelente Sesion",
+                value="Gracias por la sesion de juego extendida.",
                 inline=False
             )
         
-        embed.set_footer(text="Sesión finalizada por " + interaction.user.display_name)
+        embed.set_footer(text="Sesion finalizada por " + interaction.user.display_name)
         
         await interaction.response.send_message(embed=embed)
         
@@ -322,7 +327,6 @@ async def stop_session(interaction: discord.Interaction):
 
 @tasks.loop(hours=1)
 async def cleanup_sessions():
-    """Periodic cleanup of old sessions."""
     try:
         cleaned = session_manager.cleanup_old_sessions()
         if cleaned > 0:
@@ -332,7 +336,6 @@ async def cleanup_sessions():
 
 @tasks.loop(hours=2)
 async def session_warnings():
-    """Check for long-running sessions and send warnings."""
     try:
         active_sessions = session_manager.get_all_active_sessions()
         
@@ -367,7 +370,6 @@ async def before_warnings():
     await bot.wait_until_ready()
 
 async def main():
-    """Main function to run the bot."""
     try:
         logger.info("Starting SM64 Co-op DX Discord Bot...")
         await bot.start(BOT_TOKEN)
